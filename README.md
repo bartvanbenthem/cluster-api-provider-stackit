@@ -1,4 +1,4 @@
-# cluster-api-provider-stackit
+# Cluster API provider for STACKIT
 
 A [Cluster API](https://cluster-api.sigs.k8s.io/) infrastructure provider for
 [STACKIT](https://www.stackit.de/), built on the official
