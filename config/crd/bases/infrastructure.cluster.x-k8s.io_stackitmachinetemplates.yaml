@@ -1,0 +1,98 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
+  labels:
+    cluster.x-k8s.io/v1beta2: v1alpha1
+  name: stackitmachinetemplates.infrastructure.cluster.x-k8s.io
+spec:
+  group: infrastructure.cluster.x-k8s.io
+  names:
+    kind: StackitMachineTemplate
+    listKind: StackitMachineTemplateList
+    plural: stackitmachinetemplates
+    singular: stackitmachinetemplate
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: StackitMachineTemplate is the Schema for the stackitmachinetemplates
+          API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of StackitMachineTemplate
+            properties:
+              template:
+                description: template is the object used to create StackitMachines
+                  from this StackitMachineTemplate.
+                properties:
+                  spec:
+                    description: spec is the specification for the StackitMachines
+                      created from this template.
+                    properties:
+                      availabilityZone:
+                        description: |-
+                          availabilityZone pins the server to a specific STACKIT availability zone. If unset, the
+                          value is taken from the owning Machine's spec.failureDomain.
+                        type: string
+                      imageId:
+                        description: imageId is the ID of the STACKIT image (e.g.
+                          an Ubuntu image) used as the boot volume source.
+                        minLength: 1
+                        type: string
+                      machineType:
+                        description: machineType is the STACKIT machine type (flavor)
+                          to use, e.g. "g1.2".
+                        minLength: 1
+                        type: string
+                      providerID:
+                        description: |-
+                          providerID is the identification ID of the server as understood by the STACKIT provider.
+                          It is set by the controller once the server is created, in the form
+                          "stackit://<projectId>/<region>/<serverId>".
+                        type: string
+                      rootDiskSizeGB:
+                        description: rootDiskSizeGB is the size in GB of the boot
+                          volume. Defaults to 32 if unset.
+                        format: int64
+                        minimum: 1
+                        type: integer
+                      sshKeyName:
+                        description: sshKeyName is the name of an existing STACKIT
+                          SSH key pair to inject into the server.
+                        type: string
+                    required:
+                    - imageId
+                    - machineType
+                    type: object
+                required:
+                - spec
+                type: object
+            required:
+            - template
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true

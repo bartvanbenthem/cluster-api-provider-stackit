@@ -1,0 +1,11 @@
+# Maps this provider's release series to the Cluster API contract version it
+# implements. clusterctl reads this file to decide which release of this provider is
+# compatible with the management cluster's installed Cluster API core version.
+#
+# Update this file only when a new major or minor version of this provider is released.
+apiVersion: clusterctl.cluster.x-k8s.io/v1alpha3
+kind: Metadata
+releaseSeries:
+  - major: 0
+    minor: 1
+    contract: v1beta2

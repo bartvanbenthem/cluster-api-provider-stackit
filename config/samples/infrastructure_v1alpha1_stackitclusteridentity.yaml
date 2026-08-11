@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: stackitclusteridentity-sample-credentials
+  labels:
+    app.kubernetes.io/name: cluster-api-provider-stackit
+    app.kubernetes.io/managed-by: kustomize
+type: Opaque
+stringData:
+  # Contents of a STACKIT service account key (JSON), e.g. the output of
+  # `stackit service-account key create`. Alternatively set the "token" key to a
+  # static STACKIT service account bearer token instead.
+  serviceAccountKey: |
+    {"REPLACE_WITH": "your STACKIT service account key JSON"}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: StackitClusterIdentity
+metadata:
+  labels:
+    app.kubernetes.io/name: cluster-api-provider-stackit
+    app.kubernetes.io/managed-by: kustomize
+  name: stackitclusteridentity-sample
+spec:
+  secretRef:
+    name: stackitclusteridentity-sample-credentials

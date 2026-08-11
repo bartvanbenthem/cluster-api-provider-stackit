@@ -1,0 +1,134 @@
+# Default cluster template for cluster-api-provider-stackit.
+#
+# Renders with `clusterctl generate cluster`, which performs ${VAR} substitution from
+# environment variables (defaults shown below via ${VAR:=default}). Required variables
+# with no default must be exported before generating:
+#
+#   CLUSTER_NAME                       name of the workload cluster
+#   STACKIT_PROJECT_ID                 STACKIT project UUID to create resources in
+#   STACKIT_IMAGE_ID                   STACKIT image UUID used for control-plane and worker boot volumes
+#   STACKIT_SERVICE_ACCOUNT_KEY        contents of a STACKIT service account key (JSON), used for STACKIT API auth
+#   KUBERNETES_VERSION                 Kubernetes version to install, e.g. v1.31.0
+#
+# See the top-level README for the full list of optional variables and their defaults.
+---
+apiVersion: cluster.x-k8s.io/v1beta2
+kind: Cluster
+metadata:
+  name: "${CLUSTER_NAME}"
+  namespace: "${NAMESPACE}"
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ${POD_CIDR:=["192.168.0.0/16"]}
+    services:
+      cidrBlocks: ${SERVICE_CIDR:=["10.128.0.0/12"]}
+  controlPlaneRef:
+    apiGroup: controlplane.cluster.x-k8s.io
+    kind: KubeadmControlPlane
+    name: "${CLUSTER_NAME}-control-plane"
+  infrastructureRef:
+    apiGroup: infrastructure.cluster.x-k8s.io
+    kind: StackitCluster
+    name: "${CLUSTER_NAME}"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: StackitCluster
+metadata:
+  name: "${CLUSTER_NAME}"
+  namespace: "${NAMESPACE}"
+spec:
+  projectId: "${STACKIT_PROJECT_ID}"
+  region: "${STACKIT_REGION:=eu01}"
+  identityRef:
+    name: "${CLUSTER_NAME}-stackit-credentials"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "${CLUSTER_NAME}-stackit-credentials"
+  namespace: "${NAMESPACE}"
+type: Opaque
+stringData:
+  serviceAccountKey: "${STACKIT_SERVICE_ACCOUNT_KEY}"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: StackitClusterIdentity
+metadata:
+  name: "${CLUSTER_NAME}-stackit-credentials"
+  namespace: "${NAMESPACE}"
+spec:
+  secretRef:
+    name: "${CLUSTER_NAME}-stackit-credentials"
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: KubeadmControlPlane
+metadata:
+  name: "${CLUSTER_NAME}-control-plane"
+  namespace: "${NAMESPACE}"
+spec:
+  replicas: ${CONTROL_PLANE_MACHINE_COUNT:=1}
+  version: "${KUBERNETES_VERSION}"
+  machineTemplate:
+    spec:
+      infrastructureRef:
+        apiGroup: infrastructure.cluster.x-k8s.io
+        kind: StackitMachineTemplate
+        name: "${CLUSTER_NAME}-control-plane"
+  # kubeadmConfigSpec intentionally left at its defaults. Add clusterConfiguration /
+  # initConfiguration / joinConfiguration overrides here if your workload needs them
+  # (e.g. nodeRegistration.kubeletExtraArgs for an out-of-tree cloud provider).
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: StackitMachineTemplate
+metadata:
+  name: "${CLUSTER_NAME}-control-plane"
+  namespace: "${NAMESPACE}"
+spec:
+  template:
+    spec:
+      machineType: "${STACKIT_CONTROL_PLANE_MACHINE_TYPE:=g1.2}"
+      imageId: "${STACKIT_IMAGE_ID}"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: StackitMachineTemplate
+metadata:
+  name: "${CLUSTER_NAME}-worker"
+  namespace: "${NAMESPACE}"
+spec:
+  template:
+    spec:
+      machineType: "${STACKIT_WORKER_MACHINE_TYPE:=g1.2}"
+      imageId: "${STACKIT_IMAGE_ID}"
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
+kind: KubeadmConfigTemplate
+metadata:
+  name: "${CLUSTER_NAME}-worker"
+  namespace: "${NAMESPACE}"
+spec:
+  template:
+    spec: {}
+---
+apiVersion: cluster.x-k8s.io/v1beta2
+kind: MachineDeployment
+metadata:
+  name: "${CLUSTER_NAME}-worker"
+  namespace: "${NAMESPACE}"
+spec:
+  clusterName: "${CLUSTER_NAME}"
+  replicas: ${WORKER_MACHINE_COUNT:=1}
+  selector: {}
+  template:
+    spec:
+      clusterName: "${CLUSTER_NAME}"
+      version: "${KUBERNETES_VERSION}"
+      bootstrap:
+        configRef:
+          apiGroup: bootstrap.cluster.x-k8s.io
+          kind: KubeadmConfigTemplate
+          name: "${CLUSTER_NAME}-worker"
+      infrastructureRef:
+        apiGroup: infrastructure.cluster.x-k8s.io
+        kind: StackitMachineTemplate
+        name: "${CLUSTER_NAME}-worker"
