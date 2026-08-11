@@ -97,17 +97,17 @@ func (r *StackitClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}()
 
 	if !stackitCluster.DeletionTimestamp.IsZero() {
-		return r.reconcileDelete(ctx, stackitCluster)
+		return ctrl.Result{}, r.reconcileDelete(ctx, stackitCluster)
 	}
 
 	if controllerutil.AddFinalizer(stackitCluster, ClusterFinalizer) {
 		return ctrl.Result{}, nil
 	}
 
-	return r.reconcileNormal(ctx, stackitCluster)
+	return ctrl.Result{}, r.reconcileNormal(ctx, stackitCluster)
 }
 
-func (r *StackitClusterReconciler) reconcileNormal(ctx context.Context, stackitCluster *infrastructurev1alpha1.StackitCluster) (ctrl.Result, error) {
+func (r *StackitClusterReconciler) reconcileNormal(ctx context.Context, stackitCluster *infrastructurev1alpha1.StackitCluster) error {
 	scope, err := cloud.NewScope(ctx, r.Client, stackitCluster)
 	if err != nil {
 		conditions.Set(stackitCluster, metav1.Condition{
@@ -116,7 +116,7 @@ func (r *StackitClusterReconciler) reconcileNormal(ctx context.Context, stackitC
 			Reason:  "CredentialsInvalid",
 			Message: err.Error(),
 		})
-		return ctrl.Result{}, err
+		return err
 	}
 
 	if err := r.reconcileNetwork(ctx, scope, stackitCluster); err != nil {
@@ -124,7 +124,7 @@ func (r *StackitClusterReconciler) reconcileNormal(ctx context.Context, stackitC
 			Type: ReadyConditionType, Status: metav1.ConditionFalse,
 			Reason: "NetworkReconcileFailed", Message: err.Error(),
 		})
-		return ctrl.Result{}, err
+		return err
 	}
 
 	if err := r.reconcileSecurityGroup(ctx, scope, stackitCluster); err != nil {
@@ -132,7 +132,7 @@ func (r *StackitClusterReconciler) reconcileNormal(ctx context.Context, stackitC
 			Type: ReadyConditionType, Status: metav1.ConditionFalse,
 			Reason: "SecurityGroupReconcileFailed", Message: err.Error(),
 		})
-		return ctrl.Result{}, err
+		return err
 	}
 
 	if err := r.reconcileControlPlaneEndpoint(ctx, scope, stackitCluster); err != nil {
@@ -140,12 +140,12 @@ func (r *StackitClusterReconciler) reconcileNormal(ctx context.Context, stackitC
 			Type: ReadyConditionType, Status: metav1.ConditionFalse,
 			Reason: "ControlPlaneEndpointReconcileFailed", Message: err.Error(),
 		})
-		return ctrl.Result{}, err
+		return err
 	}
 
 	failureDomains, err := scope.ListFailureDomains(ctx)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("listing failure domains: %w", err)
+		return fmt.Errorf("listing failure domains: %w", err)
 	}
 	stackitCluster.Status.FailureDomains = failureDomains
 
@@ -155,7 +155,7 @@ func (r *StackitClusterReconciler) reconcileNormal(ctx context.Context, stackitC
 		Status: metav1.ConditionTrue,
 		Reason: "Provisioned",
 	})
-	return ctrl.Result{}, nil
+	return nil
 }
 
 func (r *StackitClusterReconciler) reconcileNetwork(ctx context.Context, scope *cloud.Scope, stackitCluster *infrastructurev1alpha1.StackitCluster) error {
@@ -214,32 +214,32 @@ func (r *StackitClusterReconciler) reconcileControlPlaneEndpoint(ctx context.Con
 	return nil
 }
 
-func (r *StackitClusterReconciler) reconcileDelete(ctx context.Context, stackitCluster *infrastructurev1alpha1.StackitCluster) (ctrl.Result, error) {
+func (r *StackitClusterReconciler) reconcileDelete(ctx context.Context, stackitCluster *infrastructurev1alpha1.StackitCluster) error {
 	scope, err := cloud.NewScope(ctx, r.Client, stackitCluster)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("building cloud scope for deletion: %w", err)
+		return fmt.Errorf("building cloud scope for deletion: %w", err)
 	}
 
 	if stackitCluster.Status.ControlPlanePublicIPID != "" {
 		if err := scope.DeletePublicIP(ctx, stackitCluster.Status.ControlPlanePublicIPID); err != nil {
-			return ctrl.Result{}, err
+			return err
 		}
 	}
 
 	if stackitCluster.Status.SecurityGroupID != "" {
 		if err := scope.DeleteSecurityGroup(ctx, stackitCluster.Status.SecurityGroupID); err != nil {
-			return ctrl.Result{}, err
+			return err
 		}
 	}
 
 	if stackitCluster.Status.NetworkManaged && stackitCluster.Status.NetworkID != "" {
 		if err := scope.DeleteNetwork(ctx, stackitCluster.Status.NetworkID); err != nil {
-			return ctrl.Result{}, err
+			return err
 		}
 	}
 
 	controllerutil.RemoveFinalizer(stackitCluster, ClusterFinalizer)
-	return ctrl.Result{}, nil
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

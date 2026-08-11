@@ -123,7 +123,7 @@ func (r *StackitMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}()
 
 	if !stackitMachine.DeletionTimestamp.IsZero() {
-		return r.reconcileDelete(ctx, stackitCluster, stackitMachine)
+		return ctrl.Result{}, r.reconcileDelete(ctx, stackitCluster, stackitMachine)
 	}
 
 	if controllerutil.AddFinalizer(stackitMachine, MachineFinalizer) {
@@ -148,7 +148,7 @@ func (r *StackitMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
-	return r.reconcileNormal(ctx, machine, stackitCluster, stackitMachine)
+	return ctrl.Result{}, r.reconcileNormal(ctx, machine, stackitCluster, stackitMachine)
 }
 
 func (r *StackitMachineReconciler) reconcileNormal(
@@ -156,14 +156,14 @@ func (r *StackitMachineReconciler) reconcileNormal(
 	machine *clusterv1.Machine,
 	stackitCluster *infrastructurev1alpha1.StackitCluster,
 	stackitMachine *infrastructurev1alpha1.StackitMachine,
-) (ctrl.Result, error) {
+) error {
 	scope, err := cloud.NewScope(ctx, r.Client, stackitCluster)
 	if err != nil {
 		conditions.Set(stackitMachine, metav1.Condition{
 			Type: ReadyConditionType, Status: metav1.ConditionFalse,
 			Reason: "CredentialsInvalid", Message: err.Error(),
 		})
-		return ctrl.Result{}, err
+		return err
 	}
 
 	var server *iaas.Server
@@ -174,35 +174,35 @@ func (r *StackitMachineReconciler) reconcileNormal(
 				Type: ReadyConditionType, Status: metav1.ConditionFalse,
 				Reason: "ServerCreateFailed", Message: err.Error(),
 			})
-			return ctrl.Result{}, err
+			return err
 		}
 		stackitMachine.Spec.ProviderID = fmt.Sprintf("%s%s/%s/%s", providerIDPrefix, scope.ProjectID, scope.Region, *server.Id)
 
 		if util.IsControlPlaneMachine(machine) && stackitCluster.Status.ControlPlanePublicIPID != "" {
 			ip, err := scope.GetPublicIP(ctx, stackitCluster.Status.ControlPlanePublicIPID)
 			if err != nil {
-				return ctrl.Result{}, err
+				return err
 			}
 			if !ip.NetworkInterface.IsSet() || ip.NetworkInterface.Get() == nil {
 				if err := scope.AttachPublicIPToServer(ctx, *server.Id, stackitCluster.Status.ControlPlanePublicIPID); err != nil {
-					return ctrl.Result{}, err
+					return err
 				}
 				// Refresh so status.addresses below picks up the newly attached IP.
 				server, err = r.getServer(ctx, scope, stackitMachine)
 				if err != nil {
-					return ctrl.Result{}, err
+					return err
 				}
 			}
 		}
 	} else {
 		server, err = r.getServer(ctx, scope, stackitMachine)
 		if err != nil {
-			return ctrl.Result{}, err
+			return err
 		}
 	}
 
 	r.updateStatusFromServer(stackitMachine, server)
-	return ctrl.Result{}, nil
+	return nil
 }
 
 func (r *StackitMachineReconciler) createServer(
@@ -303,24 +303,24 @@ func (r *StackitMachineReconciler) updateStatusFromServer(stackitMachine *infras
 	}
 }
 
-func (r *StackitMachineReconciler) reconcileDelete(ctx context.Context, stackitCluster *infrastructurev1alpha1.StackitCluster, stackitMachine *infrastructurev1alpha1.StackitMachine) (ctrl.Result, error) {
+func (r *StackitMachineReconciler) reconcileDelete(ctx context.Context, stackitCluster *infrastructurev1alpha1.StackitCluster, stackitMachine *infrastructurev1alpha1.StackitMachine) error {
 	if stackitMachine.Spec.ProviderID != "" {
 		scope, err := cloud.NewScope(ctx, r.Client, stackitCluster)
 		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("building cloud scope for deletion: %w", err)
+			return fmt.Errorf("building cloud scope for deletion: %w", err)
 		}
 
 		serverID, err := serverIDFromProviderID(stackitMachine.Spec.ProviderID)
 		if err != nil {
-			return ctrl.Result{}, err
+			return err
 		}
 		if err := scope.DeleteServer(ctx, serverID); err != nil {
-			return ctrl.Result{}, err
+			return err
 		}
 	}
 
 	controllerutil.RemoveFinalizer(stackitMachine, MachineFinalizer)
-	return ctrl.Result{}, nil
+	return nil
 }
 
 // serverIDFromProviderID extracts the STACKIT server ID from a provider ID of the form

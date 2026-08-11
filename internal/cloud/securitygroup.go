@@ -24,6 +24,8 @@ import (
 	iaas "github.com/stackitcloud/stackit-sdk-go/services/iaas/v2api"
 )
 
+const ingressDirection = "ingress"
+
 // GetSecurityGroup returns the security group with the given ID.
 func (s *Scope) GetSecurityGroup(ctx context.Context, securityGroupID string) (*iaas.SecurityGroup, error) {
 	sg, err := s.API.GetSecurityGroup(ctx, s.ProjectID, s.Region, securityGroupID).Execute()
@@ -59,14 +61,14 @@ func (s *Scope) createSecurityGroupRules(ctx context.Context, securityGroupID st
 
 	rules := []iaas.CreateSecurityGroupRulePayload{
 		{
-			Direction: "ingress",
+			Direction: ingressDirection,
 			Ethertype: utils.Ptr("IPv4"),
 			Protocol:  &tcp,
 			IpRange:   utils.Ptr("0.0.0.0/0"),
 			PortRange: &iaas.PortRange{Min: 22, Max: 22},
 		},
 		{
-			Direction: "ingress",
+			Direction: ingressDirection,
 			Ethertype: utils.Ptr("IPv4"),
 			Protocol:  &tcp,
 			IpRange:   utils.Ptr("0.0.0.0/0"),
@@ -75,7 +77,7 @@ func (s *Scope) createSecurityGroupRules(ctx context.Context, securityGroupID st
 		{
 			// Allow all traffic between members of this security group (kubelet,
 			// etcd, CNI overlay, NodePort services, ...).
-			Direction:             "ingress",
+			Direction:             ingressDirection,
 			Ethertype:             utils.Ptr("IPv4"),
 			RemoteSecurityGroupId: utils.Ptr(securityGroupID),
 		},
