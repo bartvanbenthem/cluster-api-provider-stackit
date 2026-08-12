@@ -65,14 +65,21 @@ the Cluster API `v1beta2` contract.
   Kubernetes-ready OS (containerd, kubeadm/kubelet preinstalled, or use
   [image-builder](https://image-builder.sigs.k8s.io/) to build one) — note its ID.
 
+- Core components, That installs clusters.cluster.x-k8s.io, machines.cluster.x-k8s.io, machinesets, machinedeployments, etc. Once those CRDs exist, your stackitcluster and stackitmachine controllers will successfully start their Cluster/Machine EventSources and the errors will stop repeating.
+
+```sh
+kubectl apply -f https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.14.0/core-components.yaml
+```
+
+
 ## Building and deploying the manager
 
 ```sh
 make manifests generate    # regenerate CRDs/RBAC and deepcopy code after any api/ change
 make test                  # unit tests + envtest-backed controller tests
-make docker-build docker-push IMG=<registry>/cluster-api-provider-stackit:<tag>
+make docker-build docker-push IMG=ghcr.io/bartvanbenthem/cluster-api-provider-stackit:latest
 make install               # apply the CRDs to your management cluster
-make deploy IMG=<registry>/cluster-api-provider-stackit:<tag>   # deploy the manager
+make deploy IMG=ghcr.io/bartvanbenthem/cluster-api-provider-stackit:latest   # deploy the manager
 ```
 
 `make manifests`/`make generate` intentionally scope `controller-gen` to `./api/...

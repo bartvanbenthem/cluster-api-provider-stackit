@@ -2,6 +2,11 @@
 # Ignore everything by default and re-include only needed files
 **
 
+# Un-ignore directories so the builder still traverses into them to
+# evaluate the file-level re-include rules below (buildah/podman, unlike
+# BuildKit, won't descend into a dir excluded by `**` otherwise).
+!**/
+
 # Re-include Go source files (but not *_test.go)
 !**/*.go
 **/*_test.go
