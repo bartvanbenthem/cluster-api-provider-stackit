@@ -59,7 +59,13 @@ the Cluster API `v1beta2` contract.
 
   ```sh
   clusterctl init
+
+  # install clusterctl
+  curl -L https://github.com/kubernetes-sigs/cluster-api/releases/latest/download/clusterctl-linux-amd64 -o clusterctl
+  chmod +x clusterctl
+  sudo mv clusterctl /usr/local/bin/clusterctl
   ```
+
 
 - A STACKIT [image](https://docs.stackit.cloud/stackit/en/images-75989685.html) with a
   Kubernetes-ready OS (containerd, kubeadm/kubelet preinstalled, or use
@@ -69,7 +75,6 @@ the Cluster API `v1beta2` contract.
 ## Building and deploying the manager
 
 First apply the core components, That installs clusters.cluster.x-k8s.io, machines.cluster.x-k8s.io, machinesets, machinedeployments, etc. Once those CRDs exist, your stackitcluster and stackitmachine controllers will successfully start their Cluster/Machine EventSources and the errors will stop repeating.
-
 ```sh
 kubectl apply -f https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.14.0/core-components.yaml
 ```
